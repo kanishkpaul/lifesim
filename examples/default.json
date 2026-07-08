@@ -1,0 +1,22 @@
+{
+  "domain": "all",
+  "horizon_months": 60,
+  "overrides": {
+    "skill": 0.35,
+    "reputation": 0.25,
+    "network": 0.3,
+    "savings": 6.0,
+    "health": 0.65,
+    "energy": 0.6,
+    "mood": 0.55,
+    "connection": 0.4
+  },
+  "policy": {
+    "work": 0.4,
+    "love": 0.2,
+    "health": 0.2,
+    "explore": 0.2
+  },
+  "schema_version": 1,
+  "uncertainty": 0.3
+}
