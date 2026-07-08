@@ -16,7 +16,8 @@ from __future__ import annotations
 import random
 
 from . import events
-from .state import clamp_state
+from .metrics import update_life_metrics
+from .state import clamp_state, refresh_derived_metrics
 
 # --- Coupling coefficients (prototype values; tuned to not saturate). ---
 _SKILL_RATE = 0.06          # work->skill learning rate, gated by energy
@@ -124,8 +125,11 @@ def step(state: dict, policy: dict, cfg, rng: random.Random) -> dict:
     s["luck"] = state["luck"] + _LUCK_REV * (0.5 - state["luck"]) \
         + _noise(rng, ns, "luck")
 
+    update_life_metrics(s, state, policy, ns, rng, career_capital)
+    refresh_derived_metrics(s)
     clamp_state(s)                          # no bounded var escapes [0, 1]
     fired = events.apply_events(s, policy, cfg, rng)  # the one sanctioned mutation
+    refresh_derived_metrics(s)
     clamp_state(s)                          # events may push out of range; re-clamp
     # Stash the month's fired events under a reserved, non-variable key so the
     # engine can build a per-life surprise record without breaking step's

@@ -142,10 +142,10 @@ the cone width (p95−p5).
   3.1.
 
 **Policy comparison** (`--compare`) — per outcome variable: median, spread (std),
-downside **CVaR** (mean of the worst 5% — the number that matters for worst case),
-and **regret** (this policy's gap to the best policy's worst-case floor for that
-variable). No column is a total: one policy owns the skill floor, another owns the
-connection floor, and choosing between them is your call, not the tool's.
+downside **CVaR** (mean of the worst 5% in the bad direction — low for
+higher-is-better metrics, high for debt/stress/burnout/loneliness), and
+**regret**. No column is a total: one policy owns the skill floor, another owns
+the connection floor, and choosing between them is your call, not the tool's.
 
 ## Policies
 
@@ -195,13 +195,23 @@ round-trips losslessly.
 
 ## The model, briefly
 
-Nine state variables (`skill`, `reputation`, `network`, `savings`, `health`,
-`energy`, `mood`, `connection`, plus latent `luck`) evolve monthly under a
-**coupling graph**: energy gates skill gains, work crowds out connection, career
-capital compounds into income, mood scales downstream effects, financial stress
-depresses mood. On top of the smooth dynamics, discrete **events** (the fat tails)
-fire with rates that grow with `u`. This coupling is what makes a trajectory a
-life instead of N independent random walks.
+The model tracks core state (`skill`, `reputation`, `network`, `health`,
+`energy`, `mood`, `connection`, plus latent `luck`) and concrete metrics for
+money (`cash_usd`, `debt_usd`, `investments_usd`, `net_worth_usd`,
+`annual_income_usd`, `monthly_burn_usd`), time freedom (`work_hours_per_week`,
+`free_hours_per_week`, `schedule_control`), stress/recovery (`stress`,
+`burnout_risk`, `sleep_quality`, `recovery_capacity`), relationship depth
+(`romantic_connection`, `friendship_depth`, `family_support`, `loneliness`), and
+physical condition (`fitness`, `chronic_health_risk`, `sleep_hours`). Derived
+diagnostics (`optionality`, `luck_surface_area`, `downside_fragility`,
+`bottleneck_pressure`) are recomputed from the raw metrics rather than evolved as
+independent scores.
+
+The coupling graph is still the point: energy gates skill gains, work crowds out
+connection and time freedom, career capital compounds into income, mood scales
+downstream effects, and financial stress depresses mood. Discrete **events** add
+the fat tails. This coupling is what makes a trajectory a life instead of N
+independent random walks.
 
 ## Development
 

@@ -97,6 +97,7 @@ def compare(cfg, policies: dict[str, dict[str, float]],
     """
     from .report import cvar_downside, stdev  # local: avoid import cycle
     from .simulate import simulate
+    from .state import HIGHER_IS_BETTER
 
     import statistics
 
@@ -111,14 +112,19 @@ def compare(cfg, policies: dict[str, dict[str, float]],
             row[k] = {
                 "median": statistics.median(xs),
                 "spread": stdev(xs),
-                "cvar": cvar_downside(xs),
+                "cvar": cvar_downside(xs, higher_is_better=HIGHER_IS_BETTER.get(k, True)),
             }
         per_policy[name] = row
 
-    # Regret: per variable, gap to the best worst-case (highest cvar) across policies.
+    # Regret: per variable, gap to the safest bad-tail outcome across policies.
     for k in keys:
-        best_cvar = max(per_policy[name][k]["cvar"] for name in policies)
+        hib = HIGHER_IS_BETTER.get(k, True)
+        cvars = [per_policy[name][k]["cvar"] for name in policies]
+        best_cvar = max(cvars) if hib else min(cvars)
         for name in policies:
-            per_policy[name][k]["regret"] = best_cvar - per_policy[name][k]["cvar"]
+            if hib:
+                per_policy[name][k]["regret"] = best_cvar - per_policy[name][k]["cvar"]
+            else:
+                per_policy[name][k]["regret"] = per_policy[name][k]["cvar"] - best_cvar
 
     return {"keys": keys, "policies": list(policies), "rows": per_policy}

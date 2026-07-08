@@ -36,8 +36,9 @@ lifesim/
 
 ## The state vector
 
-Continuous variables in `[0,1]` unless noted. `savings` is in months of runway
-(unbounded, may go negative = debt).
+Continuous variables in `[0,1]` unless noted. Money, hours, and runway are
+documented non-bounded variables. `savings` is in months of runway; `net_worth_usd`
+may go negative.
 
 | var          | meaning                                   | domains        |
 |--------------|-------------------------------------------|----------------|
@@ -50,6 +51,18 @@ Continuous variables in `[0,1]` unless noted. `savings` is in months of runway
 | `mood`       | affective baseline; scales downstream     | all            |
 | `connection` | quality of close relationship(s)          | love, all      |
 | `luck`       | latent, mean-reverting; modulates events  | internal       |
+
+Expanded concrete metrics are also first-class state: money
+(`cash_usd`, `debt_usd`, `investments_usd`, `net_worth_usd`,
+`annual_income_usd`, `monthly_burn_usd`), time freedom
+(`work_hours_per_week`, `free_hours_per_week`, `schedule_control`), recovery
+(`stress`, `burnout_risk`, `sleep_quality`, `recovery_time`,
+`recovery_capacity`), relationship depth (`romantic_connection`,
+`friendship_depth`, `family_support`, `loneliness`), and physical condition
+(`fitness`, `chronic_health_risk`, `energy_stability`, `sleep_hours`). Derived
+diagnostics (`optionality`, `luck_surface_area`, `downside_fragility`,
+`bottleneck_pressure`) are recomputed from raw state, not evolved as independent
+random walks.
 
 `state.py` provides `initial_state(domain, rng, overrides=None)` returning a dict,
 with small per-trajectory jitter (~N(0, 0.03)) on the starting point so trajectories
@@ -164,8 +177,9 @@ Then the honesty block:
 - A fixed one-line reminder that undescribed variables dominate past the near term.
 
 Phase 2 adds risk metrics per outcome: standard deviation and **CVaR** on the
-downside (mean of the worst 5% of outcomes) — the number that actually matters for
-"worst case".
+downside (mean of the worst 5% in the bad direction). For lower-is-better metrics
+such as debt, stress, burnout, loneliness, chronic health risk, downside
+fragility, and bottleneck pressure, the downside CVaR is the high tail.
 
 ## precision.py — sampling precision without fake certainty
 

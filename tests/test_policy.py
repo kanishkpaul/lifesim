@@ -77,6 +77,11 @@ def test_cvar_is_at_most_median_region():
     assert cvar_downside(xs) < sum(xs) / len(xs)
 
 
+def test_cvar_uses_high_tail_when_lower_is_better():
+    xs = list(range(100))
+    assert cvar_downside(xs, higher_is_better=False) > sum(xs) / len(xs)
+
+
 def test_stdev_zero_for_constant():
     assert stdev([3.0] * 10) == 0.0
 

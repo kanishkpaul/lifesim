@@ -30,7 +30,11 @@ def _base_rate(u: float) -> float:
 
 # --- effect helpers: nudge a bounded var, keeping it in range immediately. ---
 def _bump(state: dict, key: str, delta: float) -> None:
-    state[key] = clamp01(state[key] + delta)
+    state[key] = clamp01(state.get(key, 0.0) + delta)
+
+
+def _add(state: dict, key: str, delta: float) -> None:
+    state[key] = state.get(key, 0.0) + delta
 
 
 # --- probability multipliers (keyed to state/policy). Return a scalar >= 0. ---
@@ -69,33 +73,58 @@ def _p_windfall(state: dict, policy: dict) -> float:
 # --- effects (mutate in place). ---
 def _e_breakthrough(state: dict, rng: random.Random) -> None:
     _bump(state, "reputation", 0.12 + 0.05 * rng.random())
+    _bump(state, "career_leverage", 0.08)
+    _bump(state, "income_stability", 0.05)
+    _add(state, "annual_income_usd", 5000.0 + 15000.0 * rng.random())
+    _add(state, "cash_usd", 1000.0 + 3000.0 * rng.random())
     state["savings"] += 2.0 + 3.0 * rng.random()
     _bump(state, "mood", 0.10)
 
 
 def _e_layoff(state: dict, rng: random.Random) -> None:
+    _bump(state, "income_stability", -0.14)
+    _bump(state, "career_leverage", -0.06)
+    _bump(state, "stress", 0.18)
+    _bump(state, "burnout_risk", 0.08)
+    _add(state, "debt_usd", 1000.0 + 3000.0 * rng.random())
+    _add(state, "cash_usd", -(1000.0 + 3000.0 * rng.random()))
     state["savings"] -= 2.0 + 2.0 * rng.random()
     _bump(state, "mood", -0.12)
 
 
 def _e_meet_someone(state: dict, rng: random.Random) -> None:
     _bump(state, "connection", 0.15 + 0.10 * rng.random())
+    _bump(state, "romantic_connection", 0.15 + 0.10 * rng.random())
+    _bump(state, "friendship_depth", 0.05)
+    _bump(state, "loneliness", -0.12)
     _bump(state, "mood", 0.10)
 
 
 def _e_breakup(state: dict, rng: random.Random) -> None:
     _bump(state, "connection", -(0.15 + 0.15 * rng.random()))
+    _bump(state, "romantic_connection", -(0.20 + 0.15 * rng.random()))
+    _bump(state, "loneliness", 0.15)
+    _bump(state, "stress", 0.10)
     _bump(state, "mood", -0.12)
 
 
 def _e_health_shock(state: dict, rng: random.Random) -> None:
     _bump(state, "health", -(0.15 + 0.15 * rng.random()))
     _bump(state, "energy", -(0.10 + 0.10 * rng.random()))
+    _bump(state, "fitness", -(0.10 + 0.10 * rng.random()))
+    _bump(state, "sleep_quality", -0.08)
+    _bump(state, "chronic_health_risk", 0.12)
+    _bump(state, "burnout_risk", 0.08)
 
 
 def _e_windfall(state: dict, rng: random.Random) -> None:
-    state["savings"] += 4.0 + 5.0 * rng.random()
+    cash = 4.0 + 5.0 * rng.random()
+    state["savings"] += cash
+    burn = state.get("monthly_burn_usd", 5000.0)
+    _add(state, "cash_usd", cash * burn)
+    _add(state, "investments_usd", 0.25 * cash * burn)
     _bump(state, "network", 0.08)
+    _bump(state, "optionality", 0.08)
 
 
 # (name, prob_fn, effect_fn). Append a one-liner to add an event.

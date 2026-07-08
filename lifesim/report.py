@@ -16,6 +16,7 @@ from .events import RARE_EVENTS
 from .precision import precision_table
 from .rarity import rarity_table
 from .simulate import Result
+from .state import HIGHER_IS_BETTER
 
 _REMINDER = (
     "Reminder: past the near term, the outcome is dominated by variables nobody "
@@ -36,20 +37,21 @@ def stdev(xs: list[float]) -> float:
     return (sum((x - mean) ** 2 for x in xs) / n) ** 0.5
 
 
-def cvar_downside(xs: list[float], frac: float = 0.05) -> float:
+def cvar_downside(
+    xs: list[float], frac: float = 0.05, higher_is_better: bool = True
+) -> float:
     """Mean of the worst `frac` of outcomes — the number that matters for worst case.
 
-    For every tracked variable higher is better (more skill, more runway, more
-    connection), so the downside tail is the LOW end. We average the bottom
-    `frac` of values (at least one), giving the expected outcome conditional on
-    landing in the worst `frac`% of simulated lives. This is deliberately NOT the
-    p5 threshold but the mean beyond it, so a fat left tail is punished.
+    For higher-is-better variables the downside tail is low. For lower-is-better
+    variables (debt, stress, loneliness, etc.) the downside tail is high. This is
+    deliberately NOT the p5/p95 threshold but the mean beyond it, so a fat bad
+    tail is punished.
     """
     if not xs:
         raise ValueError("cvar of empty sequence")
     s = sorted(xs)
     k = max(1, int(len(s) * frac))
-    tail = s[:k]
+    tail = s[:k] if higher_is_better else s[-k:]
     return sum(tail) / len(tail)
 
 
@@ -180,8 +182,11 @@ def comparison_table(comparison: dict) -> str:
         lines.append(f"    {'policy':<20} {'median':>9} {'spread':>9} "
                      f"{'CVaR↓':>9} {'regret':>9}")
         lines.append(f"    {'-'*20} {'-'*9:>9} {'-'*9:>9} {'-'*9:>9} {'-'*9:>9}")
-        # Order by best (highest) downside CVaR: safest worst-case floor first.
-        ordered = sorted(policies, key=lambda p: rows[p][k]["cvar"], reverse=True)
+        # Order by safest bad-tail outcome, respecting metric direction.
+        hib = HIGHER_IS_BETTER.get(k, True)
+        ordered = sorted(
+            policies, key=lambda p: rows[p][k]["cvar"], reverse=hib
+        )
         for name in ordered:
             r = rows[name][k]
             marker = "  <- best floor" if r["regret"] == 0 else ""
