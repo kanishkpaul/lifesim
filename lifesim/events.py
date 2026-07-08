@@ -124,7 +124,7 @@ def apply_events(state: dict, policy: dict, cfg, rng: random.Random) -> list[str
     report turns into the surprise index.
     """
     u = cfg.u()
-    base = _base_rate(u)
+    base = _base_rate(u) * cfg.event_rate_scale
     fired: list[str] = []
     for name, prob_fn, effect_fn in EVENTS:
         p = base * prob_fn(state, policy)

@@ -1,6 +1,9 @@
 {
   "domain": "all",
   "horizon_months": 60,
+  "n_min": 200,
+  "n_max": 6000,
+  "event_rate_scale": 1.0,
   "overrides": {
     "skill": 0.35,
     "reputation": 0.25,

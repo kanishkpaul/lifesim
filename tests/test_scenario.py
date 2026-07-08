@@ -25,6 +25,9 @@ def test_round_trip_lossless():
         domain="career",
         horizon_months=36,
         uncertainty=0.42,
+        n_min=500,
+        n_max=9000,
+        event_rate_scale=1.3,
         overrides={"skill": 0.6, "savings": 12.0},
         policy={"work": 0.5, "love": 0.1, "health": 0.2, "explore": 0.2},
     )
@@ -32,6 +35,10 @@ def test_round_trip_lossless():
     save_scenario(scen, path)
     back = load_scenario(path)
     assert back == scen
+    cfg = back.to_config(seed=11)
+    assert cfg.n_min == 500
+    assert cfg.n_max == 9000
+    assert cfg.event_rate_scale == 1.3
 
 
 def test_load_rejects_unknown_field():

@@ -60,10 +60,15 @@ python3 -m lifesim [options]
 --u FLOAT                     uncertainty 0..1 (default: 0.3)
 --t INT                       horizon in months (default: 60)
 --seed INT                    fixed seed => byte-identical output
+--n-min INT                   trajectory count at u=0 (default: 200)
+--n-max INT                   trajectory count at u=1 (default: 6000)
+--event-rate-scale FLOAT      positive event-rate calibration multiplier
 --policy "work=..,love=..,health=..,explore=.."   attention allocation (renormalized)
 --compare grind,balanced,...  rank named policies by median/spread/CVaR/regret
 --scenario PATH               load a JSON scenario (person + knobs)
 --from-state PATH             resume from an observed state (re-planning loop)
+--convergence                 compare horizon percentiles against a larger-N run
+--convergence-factor FLOAT    sample multiplier for --convergence (default: 2)
 --sweep u=0:1:0.1             sensitivity sweep over u or one policy weight
 --plot [PATH]                 save a percentile-fan plot (needs matplotlib)
 ```
@@ -80,12 +85,28 @@ python3 -m lifesim --policy "work=0.7,love=0.1,health=0.1,explore=0.1" --seed 1
 # Which policy do I regret least in the worst case?
 python3 -m lifesim --compare grind,balanced,relationship_first,explore_heavy --seed 1
 
+# More statistically precise about the model's own fan
+python3 -m lifesim --t 12 --n-max 12000 --convergence --seed 1
+
 # Run from a saved scenario
 python3 -m lifesim --scenario examples/default.json --seed 1
 
 # How sensitive is the outcome to turning up uncertainty?
 python3 -m lifesim --domain career --sweep "u=0:1:0.25" --seed 1
 ```
+
+## Making a run more precise
+
+Do it by tightening the setup and checking sampling error, not by pretending the
+future has less irreducible uncertainty:
+
+- Use a shorter horizon with `--t`; near-term fans are naturally narrower.
+- Increase `--n-min` / `--n-max`; this reduces Monte Carlo sampling error.
+- Add `--convergence` to compare the current percentiles with a larger-N run.
+- Use `--from-state` every few weeks with observed state values; re-plan from
+  reality instead of trusting one long open-loop rollout.
+- Calibrate `--event-rate-scale` or the scenario JSON value when you have a
+  reason to believe the context is more or less shock-prone than default.
 
 ## Reading the output
 
@@ -102,6 +123,13 @@ the cone width (p95−p5).
   saw. This keeps discriminating after the surprise fraction has pinned at 100%:
   two horizons can both read 100% while one averages 1.2 rare types and the other
   3.1.
+
+**Monte Carlo precision block** —
+- *MC SE*: standard error of the sample mean; lower means the simulation sampled
+  the model's distribution more precisely.
+- *split Δmax*: largest p5/p50/p95 difference between even and odd trajectories;
+  a quick percentile stability check. If this is large relative to the cone, run
+  more trajectories or use `--convergence`.
 
 **Policy comparison** (`--compare`) — per outcome variable: median, spread (std),
 downside **CVaR** (mean of the worst 5% — the number that matters for worst case),
@@ -144,6 +172,9 @@ A scenario JSON bundles a person and their run knobs:
   "domain": "all",
   "horizon_months": 60,
   "uncertainty": 0.3,
+  "n_min": 200,
+  "n_max": 6000,
+  "event_rate_scale": 1.0,
   "overrides": { "skill": 0.6, "savings": 12.0 },
   "policy": { "work": 0.5, "love": 0.1, "health": 0.2, "explore": 0.2 }
 }

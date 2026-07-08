@@ -41,3 +41,16 @@ def test_epistemic_floor_must_be_positive():
     except ValueError:
         return
     raise AssertionError("epistemic_floor=0 should be rejected")
+
+
+def test_custom_sample_budget_keeps_u_linear():
+    cfg = Config(uncertainty=0.5, n_min=100, n_max=300)
+    assert cfg.n_trajectories() == 200
+
+
+def test_event_rate_scale_must_be_positive():
+    try:
+        Config(event_rate_scale=0.0)
+    except ValueError:
+        return
+    raise AssertionError("event_rate_scale=0 should be rejected")

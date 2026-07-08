@@ -69,15 +69,19 @@ class Config:
     n_max: int = 6000
     epistemic_floor: float = 0.02   # irreducible; strictly > 0
     seed: int | None = None
+    noise_gain: float = 0.10
+    event_rate_scale: float = 1.0   # positive event calibration multiplier
 
     def n_trajectories(self) -> int   # round(n_min + u*(n_max-n_min))
-    def noise_scale(self) -> float    # epistemic_floor + u*0.10
+    def noise_scale(self) -> float    # epistemic_floor + u*noise_gain
 ```
 
 Invariants tests must assert:
 - `n_trajectories()` is monotonically non-decreasing in `u`; equals `n_min` at u=0,
   `n_max` at u=1.
 - `noise_scale()` is strictly positive for **all** `u`, including 0.
+- `event_rate_scale` is strictly positive; scenarios may calibrate events but not
+  silently turn off fat tails.
 - Both are pure functions of the config (no RNG).
 
 ## dynamics.py — the transition step (Phase 1)
@@ -111,8 +115,9 @@ document any you change.
 ## events.py — fat tails (Phase 1)
 
 `apply_events(state, policy, cfg, rng)` mutates `state` in place (the documented
-exception). Monthly base rate `= 0.01 + 0.05*u`; each event has a multiplier on top,
-often keyed to state (skill, luck, connection) or policy (love allocation).
+exception). Monthly base rate `= (0.01 + 0.05*u) * event_rate_scale`; each event
+has a multiplier on top, often keyed to state (skill, luck, connection) or policy
+(love allocation).
 
 Minimum event set:
 - **Breakthrough/promotion** — likelier with high skill + luck: ↑reputation, ↑savings, ↑mood.
@@ -138,7 +143,13 @@ a **surprise index** (fraction of lives that hit at least one rare event).
 ## report.py — output + honesty + risk (Phase 1 basic, Phase 2 risk)
 
 Text summary prints, per tracked variable at horizon: p5, p50, p95, and cone width
-(p95−p5). Then the honesty block:
+(p95−p5). It also prints a Monte Carlo precision block:
+- **MC SE**: standard error of the sample mean, separating sampling precision from
+  outcome uncertainty.
+- **Split Δmax**: largest p5/p50/p95 difference between even and odd trajectories,
+  a deterministic percentile stability check.
+
+Then the honesty block:
 - **Fan ratio**: mean band width at month `t` ÷ mean band width at month 1. Print it
   in plain words ("uncertainty grew 10× over the horizon").
 - **Surprise index**: fraction of trajectories that hit ≥1 rare event.
@@ -147,6 +158,14 @@ Text summary prints, per tracked variable at horizon: p5, p50, p95, and cone wid
 Phase 2 adds risk metrics per outcome: standard deviation and **CVaR** on the
 downside (mean of the worst 5% of outcomes) — the number that actually matters for
 "worst case".
+
+## precision.py — sampling precision without fake certainty
+
+- `monte_carlo_rows(result)` reports per-variable mean, MC standard error, and a
+  split-half percentile drift.
+- `convergence_check(base_result, policy, factor=2.0)` reruns the same seed and
+  scenario with scaled `n_min`/`n_max`, comparing horizon p5/p50/p95. This is an
+  opt-in cost because bigger uncertainty fans should cost more samples.
 
 ## policy.py — policies & comparison (Phase 2)
 
@@ -161,7 +180,8 @@ downside (mean of the worst 5% of outcomes) — the number that actually matters
 ## scenario.py — specific people & re-planning (Phase 3)
 
 - JSON scenarios: `{ "domain": ..., "horizon_months": ..., "uncertainty": ...,
-  "overrides": { "skill": 0.6, ... }, "policy": {...} }`. Load/validate/save.
+  "n_min": ..., "n_max": ..., "event_rate_scale": ..., "overrides": {
+  "skill": 0.6, ... }, "policy": {...} }`. Load/validate/save.
 - `--from-state state.json` starts the sim from an observed state (no jitter), for
   the model-predictive loop: run 3 months for real, record where you actually are,
   re-simulate forward. Document this workflow in the README.
@@ -173,9 +193,14 @@ downside (mean of the worst 5% of outcomes) — the number that actually matters
 --u FLOAT                       uncertainty 0..1, default 0.3
 --t INT                         horizon months, default 60
 --seed INT
+--n-min INT                     trajectory count at u=0
+--n-max INT                     trajectory count at u=1
+--event-rate-scale FLOAT        positive event-rate calibration multiplier
 --policy "work=0.4,love=0.2,health=0.2,explore=0.2"
 --scenario PATH                 load a JSON scenario (Phase 3)
 --from-state PATH               resume from observed state (Phase 3)
+--convergence                   compare horizon percentiles to a larger-N run
+--convergence-factor FLOAT      sample multiplier for --convergence
 --compare grind,balanced,...    rank named policies (Phase 2)
 --sweep u=0:1:0.1               sensitivity sweep (Phase 4)
 --plot                          save matplotlib plot (Phase 4, guarded)
@@ -191,9 +216,12 @@ Encode the honesty principles as invariants:
 - **coupling**: a work-heavy policy produces higher median `skill` **and** lower
   median `connection` than a love-heavy policy at the same seed (proves crowd-out
   is real, not decorative).
-- **events**: event rate rises with `u`; surprise index in `[0,1]`.
+- **events**: event rate rises with `u`; event-rate calibration affects base
+  rates; surprise index in `[0,1]`.
 - **policy**: allocations renormalize to sum 1; `compare` returns one row per policy.
 - **scenario**: round-trip load/save is lossless; `--from-state` skips jitter.
+- **precision**: MC precision rows cover all outcomes; convergence uses a larger
+  sample budget while preserving `u`.
 
 Use `pytest` if available, else a plain `python3 -m tests.run` harness — but the
 test *logic* stays stdlib so it runs anywhere.

@@ -35,6 +35,9 @@ class Scenario:
         domain: "career" | "love" | "all".
         horizon_months: how far to roll.
         uncertainty: u in [0, 1].
+        n_min: trajectory count at u=0.
+        n_max: trajectory count at u=1.
+        event_rate_scale: positive calibration multiplier for event base rates.
         overrides: starting-state values replacing defaults (before jitter).
         policy: attention allocation; renormalized on use. None => default.
         schema_version: bumped if the on-disk format changes.
@@ -43,6 +46,9 @@ class Scenario:
     domain: str = "all"
     horizon_months: int = 60
     uncertainty: float = 0.3
+    n_min: int = 200
+    n_max: int = 6000
+    event_rate_scale: float = 1.0
     overrides: dict = field(default_factory=dict)
     policy: dict | None = None
     schema_version: int = SCHEMA_VERSION
@@ -55,6 +61,10 @@ class Scenario:
             raise ValueError(f"uncertainty {self.uncertainty} outside [0, 1]")
         if self.horizon_months < 1:
             raise ValueError("horizon_months must be >= 1")
+        if self.n_min < 1 or self.n_max < self.n_min:
+            raise ValueError("require 1 <= n_min <= n_max")
+        if self.event_rate_scale <= 0:
+            raise ValueError("event_rate_scale must be strictly > 0")
         _check_state_keys(self.overrides, "overrides")
         if self.policy is not None:
             normalize(self.policy)  # raises on bad/empty/negative allocations
@@ -66,6 +76,9 @@ class Scenario:
             horizon_months=self.horizon_months,
             uncertainty=self.uncertainty,
             domain=self.domain,
+            n_min=self.n_min,
+            n_max=self.n_max,
+            event_rate_scale=self.event_rate_scale,
             seed=seed,
         )
 

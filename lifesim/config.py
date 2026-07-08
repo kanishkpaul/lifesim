@@ -33,6 +33,8 @@ class Config:
         seed: fixed seed => byte-identical output. None => nondeterministic.
         noise_gain: how much extra noise the full uncertainty knob buys on top of
             the floor. Documented so the floor stays meaningful relative to it.
+        event_rate_scale: person/scenario calibration for event base rates. Kept
+            strictly positive so fat-tail events can never be disabled silently.
     """
 
     horizon_months: int = 60
@@ -43,6 +45,7 @@ class Config:
     epistemic_floor: float = 0.02
     seed: int | None = None
     noise_gain: float = 0.10
+    event_rate_scale: float = 1.0
 
     def __post_init__(self) -> None:
         if self.domain not in VALID_DOMAINS:
@@ -55,6 +58,8 @@ class Config:
             raise ValueError("epistemic_floor must be strictly > 0 (the cone never closes)")
         if self.horizon_months < 1:
             raise ValueError("horizon_months must be >= 1")
+        if self.event_rate_scale <= 0:
+            raise ValueError("event_rate_scale must be strictly > 0")
 
     def u(self) -> float:
         """The uncertainty knob, clamped to [0, 1]."""

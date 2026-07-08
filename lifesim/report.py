@@ -13,6 +13,7 @@ tradeoffs themselves (CLAUDE.md #5).
 from __future__ import annotations
 
 from .events import RARE_EVENTS
+from .precision import precision_table
 from .simulate import Result
 
 _REMINDER = (
@@ -122,6 +123,8 @@ def summarize(result: Result) -> str:
             f"  {k:<12} {_fmt(end['p5']):>8} {_fmt(end['p50']):>8} "
             f"{_fmt(end['p95']):>8} {_fmt(cone):>14}"
         )
+    lines.append("")
+    lines.append(precision_table(result))
     lines.append("")
 
     # --- honesty block ---

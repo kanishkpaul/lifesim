@@ -1,15 +1,15 @@
 """CLI entrypoint: `python3 -m lifesim`.
 
-Phase 1 wires up the core loop end to end (domain, u, horizon, seed, policy).
-Flags for later phases (--compare, --scenario, --from-state, --sweep, --plot) are
-declared here but gently report "not until Phase N" so the surface is stable and
-self-documenting while the phases land in order.
+The CLI keeps the distinction between modeled uncertainty and sampling precision:
+`u` widens the life fan, while `--n-min`/`--n-max` and `--convergence` help check
+whether the Monte Carlo estimate of that fan is stable.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import replace
 
 from .config import Config
 from .policy import DEFAULT_POLICY, compare, get_policy, parse_policy
@@ -32,37 +32,62 @@ def build_parser() -> argparse.ArgumentParser:
                    help="horizon in months (default: 60)")
     p.add_argument("--seed", type=int, default=None,
                    help="fixed seed => reproducible output")
+    p.add_argument("--n-min", type=int, default=None,
+                   help="trajectory count at u=0 (default: 200)")
+    p.add_argument("--n-max", type=int, default=None,
+                   help="trajectory count at u=1 (default: 6000)")
+    p.add_argument("--event-rate-scale", type=float, default=None,
+                   help="positive multiplier for event base rates; calibrate "
+                        "scenario shock rates without disabling fat tails")
     p.add_argument("--policy", type=str, default=None,
                    help='attention allocation, e.g. '
                         '"work=0.4,love=0.2,health=0.2,explore=0.2" (renormalized)')
-    # --- declared now, activated in later phases ---
     p.add_argument("--compare", type=str, default=None,
-                   help="[Phase 2] rank named policies by median/spread/CVaR/regret")
+                   help="rank named policies by median/spread/CVaR/regret")
     p.add_argument("--scenario", type=str, default=None,
-                   help="[Phase 3] load a JSON scenario")
+                   help="load a JSON scenario")
     p.add_argument("--from-state", type=str, default=None, dest="from_state",
-                   help="[Phase 3] resume from an observed state (MPC loop)")
+                   help="resume from an observed state (MPC loop)")
+    p.add_argument("--convergence", action="store_true",
+                   help="after a single-policy run, compare horizon percentiles "
+                        "against a larger-N run")
+    p.add_argument("--convergence-factor", type=float, default=2.0,
+                   help="sample multiplier for --convergence (default: 2.0)")
     p.add_argument("--sweep", type=str, default=None,
-                   help="[Phase 4] sensitivity sweep, e.g. u=0:1:0.1")
+                   help="sensitivity sweep, e.g. u=0:1:0.1")
     p.add_argument("--plot", nargs="?", const="lifesim_fan.png", default=None,
                    dest="plot_path",
-                   help="[Phase 4] save a matplotlib percentile-fan plot to PATH "
+                   help="save a matplotlib percentile-fan plot to PATH "
                         "(default lifesim_fan.png; optional dependency)")
     return p
 
 
-def _not_yet(name: str, phase: int) -> int:
-    print(f"'{name}' arrives in Phase {phase}; not wired up yet.", file=sys.stderr)
-    return 2
+def _apply_precision_overrides(cfg: Config, args: argparse.Namespace) -> Config:
+    changes = {}
+    if args.n_min is not None:
+        changes["n_min"] = args.n_min
+    if args.n_max is not None:
+        changes["n_max"] = args.n_max
+    if args.event_rate_scale is not None:
+        changes["event_rate_scale"] = args.event_rate_scale
+    return replace(cfg, **changes) if changes else cfg
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.convergence and (args.compare is not None or args.sweep is not None):
+        print("--convergence is for a single policy run; omit --compare/--sweep",
+              file=sys.stderr)
+        return 2
 
     # --- resolve config, policy, and starting state (scenario / from-state) ---
     overrides: dict | None = None
     jitter = True
-    policy = parse_policy(args.policy) if args.policy else DEFAULT_POLICY
+    try:
+        policy = parse_policy(args.policy) if args.policy else DEFAULT_POLICY
+    except ValueError as e:
+        print(f"policy error: {e}", file=sys.stderr)
+        return 2
 
     if args.scenario is not None:
         from .scenario import load_scenario
@@ -71,18 +96,33 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError) as e:
             print(f"scenario error: {e}", file=sys.stderr)
             return 2
-        cfg = scen.to_config(seed=args.seed)
+        try:
+            cfg = _apply_precision_overrides(scen.to_config(seed=args.seed), args)
+        except ValueError as e:
+            print(f"config error: {e}", file=sys.stderr)
+            return 2
         resolved = scen.resolved_policy()
         if resolved is not None and args.policy is None:
             policy = resolved            # scenario policy unless CLI overrode it
         overrides = scen.overrides or None
     else:
-        cfg = Config(
-            horizon_months=args.t,
-            uncertainty=args.u,
-            domain=args.domain,
-            seed=args.seed,
-        )
+        cfg_kwargs = {
+            "horizon_months": args.t,
+            "uncertainty": args.u,
+            "domain": args.domain,
+            "seed": args.seed,
+        }
+        if args.n_min is not None:
+            cfg_kwargs["n_min"] = args.n_min
+        if args.n_max is not None:
+            cfg_kwargs["n_max"] = args.n_max
+        if args.event_rate_scale is not None:
+            cfg_kwargs["event_rate_scale"] = args.event_rate_scale
+        try:
+            cfg = Config(**cfg_kwargs)
+        except ValueError as e:
+            print(f"config error: {e}", file=sys.stderr)
+            return 2
 
     if args.from_state is not None:
         from .scenario import load_state
@@ -118,6 +158,22 @@ def main(argv: list[str] | None = None) -> int:
 
     result = simulate(cfg, policy, overrides=overrides, jitter=jitter)
     print(summarize(result))
+
+    if args.convergence:
+        from .precision import convergence_check, convergence_table
+        try:
+            check = convergence_check(
+                result,
+                policy,
+                overrides=overrides,
+                jitter=jitter,
+                factor=args.convergence_factor,
+            )
+        except ValueError as e:
+            print(f"\nconvergence error: {e}", file=sys.stderr)
+            return 2
+        print()
+        print(convergence_table(check))
 
     if args.plot_path:
         from .plot import plot_bands

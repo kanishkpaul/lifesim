@@ -8,6 +8,11 @@ from lifesim.report import mean_rare_events, surprise_index
 from lifesim.simulate import simulate
 
 
+class _FixedRng:
+    def random(self) -> float:
+        return 0.05
+
+
 def _event_count(u: float, trials: int = 4000) -> int:
     cfg = Config(uncertainty=u)
     rng = random.Random(99)
@@ -27,6 +32,23 @@ def test_event_rate_rises_with_u():
     lo = _event_count(0.0)
     hi = _event_count(1.0)
     assert hi > lo, (lo, hi)
+
+
+def test_event_rate_scale_calibrates_base_rate():
+    state = {
+        "skill": 0.5, "reputation": 0.5, "network": 0.5, "savings": 6.0,
+        "health": 0.5, "energy": 0.5, "mood": 0.5, "connection": 0.5,
+        "luck": 0.5,
+    }
+    policy = {"work": 0.25, "love": 0.25, "health": 0.25, "explore": 0.25}
+    low = apply_events(dict(state), policy, Config(uncertainty=0.0), _FixedRng())
+    high = apply_events(
+        dict(state),
+        policy,
+        Config(uncertainty=0.0, event_rate_scale=10.0),
+        _FixedRng(),
+    )
+    assert len(high) > len(low)
 
 
 def test_surprise_index_in_unit_interval():
