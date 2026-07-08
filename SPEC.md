@@ -147,8 +147,9 @@ Text summary prints, per tracked variable at horizon: p5, p50, p95, and cone wid
 - **Current**: the modeled starting-state median for each tracked variable.
 - **Potential p5 / median / p95**: horizon outcomes compared against a simple
   normal world reference.
-- **world <= / same-better**: precise percentages from the reference curve, with
-  a caveat that the reference is illustrative rather than census truth.
+- **world <= / top %**: percentages from the reference curve, with `top %`
+  exported at full meaningful float precision and a caveat that the reference is
+  illustrative rather than census truth.
 
 It also prints a Monte Carlo precision block:
 - **MC SE**: standard error of the sample mean, separating sampling precision from
@@ -180,7 +181,9 @@ downside (mean of the worst 5% of outcomes) — the number that actually matters
 - `WORLD_REFERENCES` holds transparent per-variable bell-curve assumptions. These
   are model references, not empirical world-population claims.
 - `rarity_rows(result)` reports current plus horizon p5/median/p95 for each
-  tracked variable. It must not collapse variables into a single rarity score.
+  tracked variable. Each row includes numeric `top_percent` and string
+  `top_percent_precise`. It must not collapse variables into a single rarity
+  score.
 
 ## policy.py — policies & comparison (Phase 2)
 
@@ -238,7 +241,8 @@ Encode the honesty principles as invariants:
 - **precision**: MC precision rows cover all outcomes; convergence uses a larger
   sample budget while preserving `u`.
 - **rarity**: bell-curve percentages are deterministic; rows cover current and
-  horizon p5/median/p95 per outcome variable; no single life score is emitted.
+  horizon p5/median/p95 per outcome variable; `top_percent_precise` preserves
+  meaningful float precision; no single life score is emitted.
 
 Use `pytest` if available, else a plain `python3 -m tests.run` harness — but the
 test *logic* stays stdlib so it runs anywhere.

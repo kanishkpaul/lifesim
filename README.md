@@ -118,9 +118,10 @@ the cone width (p95−p5).
   normal reference population for each outcome variable.
 - *world <=* is the percentage of that illustrative world reference at or below
   the value.
-- *same/better* is the percentage at least as good as that value. The percentages
-  are computed precisely from the reference curve, but the reference itself is a
-  modeling assumption, not census truth.
+- *top %* is the percentage at least as good as that value. It is printed and
+  exported with full meaningful float precision rather than rounded to two
+  decimals. The reference itself is still a modeling assumption, not census
+  truth.
 
 **Monte Carlo precision block** —
 - *MC SE*: standard error of the sample mean; lower means the simulation sampled

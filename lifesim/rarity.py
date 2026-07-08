@@ -62,22 +62,36 @@ def _fmt_pct(p: float) -> str:
     return f"{p:0.2f}%"
 
 
+def _precise_number(x: float) -> str:
+    """Shortest decimal that preserves the computed float value."""
+    return format(x, ".17g")
+
+
+def _fmt_pct_precise(p: float) -> str:
+    return f"{_precise_number(p)}%"
+
+
 def rarity_for_value(key: str, value: float) -> dict[str, float | str]:
     """Return percentile and same-or-better share for one variable value.
 
     `world_percentile` means the percentage of the bell-curve reference
     population at or below the value. `same_or_better` is the percentage at least
-    as good as that value for higher-is-better variables.
+    as good as that value for higher-is-better variables. `top_percent` is the
+    same quantity under a clearer report/data label; the paired precise string
+    keeps all meaningful float digits instead of rounding for display.
     """
     if key not in WORLD_REFERENCES:
         raise KeyError(f"no world rarity reference for {key!r}")
     ref = WORLD_REFERENCES[key]
     cdf = normal_cdf(value, ref.mean, ref.sd)
     same_or_better = 1.0 - cdf if ref.higher_is_better else cdf
+    top_percent = _pct(same_or_better)
     return {
         "value": value,
         "world_percentile": _pct(cdf),
-        "same_or_better": _pct(same_or_better),
+        "same_or_better": top_percent,
+        "top_percent": top_percent,
+        "top_percent_precise": _precise_number(top_percent),
         "direction": "top" if ref.higher_is_better else "bottom",
     }
 
@@ -108,14 +122,16 @@ def rarity_table(result: Result) -> str:
         "BELL-CURVE WORLD RARITY",
         "  Percentages are model-implied shares of an illustrative world reference,",
         "  not empirical census precision. Kept separate per variable; no life score.",
-        f"  {'variable':<12} {'case':<8} {'value':>8} {'world <=':>10} {'same/better':>12}",
-        f"  {'-'*12} {'-'*8} {'-'*8:>8} {'-'*10:>10} {'-'*12:>12}",
+        "  top % is the full-precision percentage of the reference population",
+        "  at least as good as this value.",
+        f"  {'variable':<12} {'case':<8} {'value':>8} {'world <=':>10} {'top %':>24}",
+        f"  {'-'*12} {'-'*8} {'-'*8:>8} {'-'*10:>10} {'-'*24:>24}",
     ]
     for row in rarity_rows(result):
         lines.append(
             f"  {str(row['variable']):<12} {str(row['case']):<8} "
             f"{float(row['value']):>8.2f} "
             f"{_fmt_pct(float(row['world_percentile'])):>10} "
-            f"{_fmt_pct(float(row['same_or_better'])):>12}"
+            f"{_fmt_pct_precise(float(row['top_percent'])):>24}"
         )
     return "\n".join(lines)

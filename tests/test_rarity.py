@@ -34,6 +34,8 @@ def test_rarity_for_value_reports_percentages():
     row = rarity_for_value("skill", 0.45)
     assert abs(row["world_percentile"] - 50.0) < 1e-9
     assert abs(row["same_or_better"] - 50.0) < 1e-9
+    assert abs(row["top_percent"] - row["same_or_better"]) < 1e-12
+    assert row["top_percent_precise"] == "50"
 
 
 def test_rarity_rows_cover_current_and_horizon_quantiles():
@@ -48,5 +50,6 @@ def test_rarity_table_and_summary_include_caveat():
     res = _result()
     table = rarity_table(res)
     assert "BELL-CURVE WORLD RARITY" in table
+    assert "top %" in table
     assert "no life score" in table
     assert "BELL-CURVE WORLD RARITY" in summarize(res)
