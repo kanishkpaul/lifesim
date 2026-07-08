@@ -113,6 +113,22 @@ future has less irreducible uncertainty:
 **Distribution block** — per tracked variable at the horizon: p5 / p50 / p95 and
 the cone width (p95−p5).
 
+**Bell-curve world rarity block** —
+- Shows the current modeled state and horizon p5 / median / p95 against a simple
+  normal reference population for each outcome variable.
+- *world <=* is the percentage of that illustrative world reference at or below
+  the value.
+- *same/better* is the percentage at least as good as that value. The percentages
+  are computed precisely from the reference curve, but the reference itself is a
+  modeling assumption, not census truth.
+
+**Monte Carlo precision block** —
+- *MC SE*: standard error of the sample mean; lower means the simulation sampled
+  the model's distribution more precisely.
+- *split Δmax*: largest p5/p50/p95 difference between even and odd trajectories;
+  a quick percentile stability check. If this is large relative to the cone, run
+  more trajectories or use `--convergence`.
+
 **Honesty block** —
 - *Fan ratio*: how many times wider the cone is at the horizon vs. month 1.
 - *Surprise index*: fraction of simulated lives that hit ≥1 rare event
@@ -123,13 +139,6 @@ the cone width (p95−p5).
   saw. This keeps discriminating after the surprise fraction has pinned at 100%:
   two horizons can both read 100% while one averages 1.2 rare types and the other
   3.1.
-
-**Monte Carlo precision block** —
-- *MC SE*: standard error of the sample mean; lower means the simulation sampled
-  the model's distribution more precisely.
-- *split Δmax*: largest p5/p50/p95 difference between even and odd trajectories;
-  a quick percentile stability check. If this is large relative to the cone, run
-  more trajectories or use `--convergence`.
 
 **Policy comparison** (`--compare`) — per outcome variable: median, spread (std),
 downside **CVaR** (mean of the worst 5% — the number that matters for worst case),

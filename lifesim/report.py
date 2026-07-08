@@ -1,4 +1,4 @@
-"""Text report: the outcome distribution plus the honesty metrics.
+"""Text report: outcome distribution, rarity reference, and honesty metrics.
 
 The point of the honesty block is to make the tool's own uncertainty legible.
 Two numbers carry it: the FAN RATIO (how many times wider the outcome cone is at
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from .events import RARE_EVENTS
 from .precision import precision_table
+from .rarity import rarity_table
 from .simulate import Result
 
 _REMINDER = (
@@ -123,6 +124,8 @@ def summarize(result: Result) -> str:
             f"  {k:<12} {_fmt(end['p5']):>8} {_fmt(end['p50']):>8} "
             f"{_fmt(end['p95']):>8} {_fmt(cone):>14}"
         )
+    lines.append("")
+    lines.append(rarity_table(result))
     lines.append("")
     lines.append(precision_table(result))
     lines.append("")

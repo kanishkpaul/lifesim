@@ -143,7 +143,14 @@ a **surprise index** (fraction of lives that hit at least one rare event).
 ## report.py — output + honesty + risk (Phase 1 basic, Phase 2 risk)
 
 Text summary prints, per tracked variable at horizon: p5, p50, p95, and cone width
-(p95−p5). It also prints a Monte Carlo precision block:
+(p95−p5). It also prints a bell-curve world rarity block:
+- **Current**: the modeled starting-state median for each tracked variable.
+- **Potential p5 / median / p95**: horizon outcomes compared against a simple
+  normal world reference.
+- **world <= / same-better**: precise percentages from the reference curve, with
+  a caveat that the reference is illustrative rather than census truth.
+
+It also prints a Monte Carlo precision block:
 - **MC SE**: standard error of the sample mean, separating sampling precision from
   outcome uncertainty.
 - **Split Δmax**: largest p5/p50/p95 difference between even and odd trajectories,
@@ -166,6 +173,14 @@ downside (mean of the worst 5% of outcomes) — the number that actually matters
 - `convergence_check(base_result, policy, factor=2.0)` reruns the same seed and
   scenario with scaled `n_min`/`n_max`, comparing horizon p5/p50/p95. This is an
   opt-in cost because bigger uncertainty fans should cost more samples.
+
+## rarity.py — bell-curve rarity without a life score
+
+- `normal_cdf(x, mean, sd)` computes a pure-stdlib normal CDF.
+- `WORLD_REFERENCES` holds transparent per-variable bell-curve assumptions. These
+  are model references, not empirical world-population claims.
+- `rarity_rows(result)` reports current plus horizon p5/median/p95 for each
+  tracked variable. It must not collapse variables into a single rarity score.
 
 ## policy.py — policies & comparison (Phase 2)
 
@@ -222,6 +237,8 @@ Encode the honesty principles as invariants:
 - **scenario**: round-trip load/save is lossless; `--from-state` skips jitter.
 - **precision**: MC precision rows cover all outcomes; convergence uses a larger
   sample budget while preserving `u`.
+- **rarity**: bell-curve percentages are deterministic; rows cover current and
+  horizon p5/median/p95 per outcome variable; no single life score is emitted.
 
 Use `pytest` if available, else a plain `python3 -m tests.run` harness — but the
 test *logic* stays stdlib so it runs anywhere.
