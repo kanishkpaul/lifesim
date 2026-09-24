@@ -222,3 +222,9 @@ python3 -m tests.run     # zero-dependency harness; also works under pytest
 Core is pure standard library, single seeded RNG threaded explicitly (fixed seed
 ⇒ reproducible), every module under ~250 lines, bounded variables clamped to
 `[0,1]`. The honesty properties are encoded as test invariants, not vibes.
+
+Checked on macOS (Apple Silicon): all 68 tests pass, and
+`python3 -m lifesim --domain all --u 0.3 --seed 1` produces byte-identical
+output across repeated runs and across Python 3.11 and 3.12. It also runs on
+3.14. The heaviest setting (`--u 1.0`, 6,000 trajectories × 60 months) takes
+about 8 seconds on an M5.
